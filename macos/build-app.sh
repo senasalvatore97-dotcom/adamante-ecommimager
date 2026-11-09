@@ -12,7 +12,7 @@ mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$ROOT/Info.plist" "$CONTENTS/Info.plist"
 
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
-swiftc "$ROOT/AdamantePhotoStudio.swift" \
+swiftc -parse-as-library "$ROOT/AdamantePhotoStudio.swift" \
   -o "$BIN" \
   -sdk "$SDK" \
   -target arm64-apple-macos14.0 \
