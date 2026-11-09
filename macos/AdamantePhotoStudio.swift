@@ -84,6 +84,7 @@ final class StudioModel: ObservableObject {
     @Published var preparedFolder: URL?
     @Published var enableAutoPaste: Bool = true
     @Published var lastPreparationSucceeded = false
+    @Published var isAutoAttaching = false
 
     private let fm = FileManager.default
     private let preferences = UserDefaults.standard
@@ -214,8 +215,8 @@ final class StudioModel: ObservableObject {
             lastPreparationSucceeded = true
             copyPrompt(prompt)
             NSWorkspace.shared.activateFileViewerSelecting(images)
-            status = "Pacchetto creato in Documenti. Prompt copiato negli appunti; le cinque immagini sono selezionate in Finder."
-            openChatGPTAndOptionallyPaste()
+            status = "Preparati cinque PNG. Sto aprendo ChatGPT; controlla sempre che siano presenti cinque allegati PRIMA di inviare."
+            openChatGPTAndOptionallyPaste(images: images)
         } catch {
             status = "Preparazione non riuscita: \(error.localizedDescription)"
             lastPreparationSucceeded = false
@@ -233,7 +234,9 @@ final class StudioModel: ObservableObject {
     }
 
     func openChatGPTAgain() {
-        openChatGPTAndOptionallyPaste()
+        guard let folder = preparedFolder else { return }
+        let images = [folder.appendingPathComponent("00-foto-prodotto-originale.png")] + Shot.allCases.map { folder.appendingPathComponent($0.fileName) }
+        openChatGPTAndOptionallyPaste(images: images)
     }
 
     private func copyPrompt(_ prompt: String) {
@@ -241,7 +244,7 @@ final class StudioModel: ObservableObject {
         NSPasteboard.general.setString(prompt, forType: .string)
     }
 
-    private func openChatGPTAndOptionallyPaste() {
+    private func openChatGPTAndOptionallyPaste(images: [URL]) {
         let appPaths = [
             "/Applications/ChatGPT.app",
             NSHomeDirectory() + "/Applications/ChatGPT.app"
@@ -254,7 +257,7 @@ final class StudioModel: ObservableObject {
             if let url = URL(string: "https://chatgpt.com/") {
                 NSWorkspace.shared.open(url)
             }
-            status = "ChatGPT aperto nel browser. Incolla il prompt (⌘V), poi trascina le cinque foto dalla cartella preparata."
+            status = "ChatGPT aperto nel browser. Trascina prima i cinque PNG da Finder, verifica cinque anteprime, poi incolla il prompt con ⌘V e invia."
             return
         }
 
@@ -264,36 +267,93 @@ final class StudioModel: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 if let error {
-                    self.status = "Impossibile aprire ChatGPT: \(error.localizedDescription). Prompt e foto sono pronti in Finder."
+                    self.status = "Impossibile aprire ChatGPT: \(error.localizedDescription). I cinque file sono pronti in Finder."
                     return
                 }
 
                 guard self.enableAutoPaste else {
-                    self.status = "ChatGPT aperto. Crea una nuova chat, incolla il prompt (⌘V) e trascina le cinque foto da Finder."
+                    self.status = "ChatGPT aperto. Trascina PRIMA i cinque PNG da Finder e controlla le anteprime; poi incolla il prompt (⌘V) e invia."
                     return
                 }
 
-                guard AXIsProcessTrusted() else {
-                    self.status = "ChatGPT aperto. Per l'inserimento automatico del prompt serve il permesso Accessibilità; in alternativa incollalo con ⌘V. Trascina le cinque foto da Finder."
+                guard AXIsProcessTrusted(), let app = application else {
+                    self.status = "Per tentare l'allegato automatico serve il permesso Accessibilità. Altrimenti trascina i cinque PNG da Finder, verifica cinque anteprime e incolla il prompt (⌘V)."
                     return
                 }
 
-                // Best effort: UI automation senza API ufficiale.
-                // Non inviamo mai il messaggio: l'utente deve controllare gli allegati e premere Invio.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
-                    application?.activate(options: [.activateAllWindows])
-                    // Ctrl+1 torna alla modalità Chat, anziché Work/Codex (app desktop recente).
+                // Best effort: ChatGPT non dispone di un'API per allegare file da applicazioni esterne.
+                // Proviamo a incollare le immagini REALI negli appunti una per volta, prima del prompt.
+                // Non inviamo mai il messaggio: l'utente deve controllare cinque anteprime.
+                self.isAutoAttaching = true
+                self.status = "Apro una nuova chat, poi tento di aggiungere le cinque fotografie prima del prompt..."
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    app.activate(options: [.activateAllWindows])
+                    // Ctrl+1: torna alla modalità Chat, se la scorciatoia è supportata.
                     self.keystroke(virtualKey: 18, modifiers: .maskControl)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                        self.keystroke(virtualKey: 45, modifiers: .maskCommand) // Cmd+N: nuova chat
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                            self.keystroke(virtualKey: 9, modifiers: .maskCommand) // Cmd+V: prompt
-                            self.status = "Ho tentato di aprire una nuova chat e incollare il prompt. Controlla il testo, trascina le cinque foto da Finder e invia quando è tutto corretto."
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                        self.keystroke(virtualKey: 45, modifiers: .maskCommand) // ⌘N
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            self.attemptPasteImages(images, in: app, index: 0)
                         }
                     }
                 }
             }
         }
+    }
+
+    private func attemptPasteImages(_ urls: [URL], in app: NSRunningApplication, index: Int) {
+        guard isAutoAttaching else { return }
+
+        // Mai incollare altrove se l'utente ha cambiato applicazione.
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier else {
+            finishAutoAttach(app, message: "L'automazione si è interrotta perché ChatGPT non era in primo piano. Trascina i cinque PNG da Finder e incolla il prompt (⌘V).", showNotice: false)
+            return
+        }
+
+        guard index < urls.count else {
+            // Reinseriamo il prompt negli appunti DOPO aver tentato le cinque immagini.
+            copyPrompt(makePrompt())
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier else {
+                    self.finishAutoAttach(app, message: "Foto tentate, ma ChatGPT non era in primo piano per il prompt. Usa «Copia nuovamente il prompt». Controlla le cinque anteprime.", showNotice: false)
+                    return
+                }
+                self.keystroke(virtualKey: 9, modifiers: .maskCommand) // ⌘V: prompt
+                self.finishAutoAttach(app, message: "Inserimento tentato. NON inviare se non vedi cinque miniature allegate: in quel caso trascina i PNG da Finder.", showNotice: true)
+            }
+            return
+        }
+
+        guard let image = NSImage(contentsOf: urls[index]) else {
+            finishAutoAttach(app, message: "Immagine \(index + 1) non leggibile. Trascina manualmente tutti i cinque PNG da Finder.", showNotice: true)
+            return
+        }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects([image]) else {
+            finishAutoAttach(app, message: "Non è stato possibile copiare l'immagine \(index + 1). Trascina i cinque PNG da Finder.", showNotice: true)
+            return
+        }
+        keystroke(virtualKey: 9, modifiers: .maskCommand) // ⌘V: immagine negli appunti
+        status = "Tentativo allegato \(index + 1) di \(urls.count). Attendi e controlla le anteprime in ChatGPT."
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.attemptPasteImages(urls, in: app, index: index + 1)
+        }
+    }
+
+    private func finishAutoAttach(_ app: NSRunningApplication, message: String, showNotice: Bool) {
+        isAutoAttaching = false
+        copyPrompt(makePrompt()) // Fallback sempre disponibile in ⌘V.
+        status = message
+        guard showNotice else { return }
+        let alert = NSAlert()
+        alert.messageText = "Controlla le 5 foto prima di inviare"
+        alert.informativeText = "L'app ha TENTATO di incollare le cinque immagini e il prompt, ma non può verificare gli allegati. Se non vedi cinque miniature nella chat, NON premere Invio: trascina i cinque PNG dalla cartella aperta in Finder. Poi controlla il prompt e invia."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Controllo in ChatGPT")
+        alert.runModal()
+        app.activate(options: [.activateAllWindows])
     }
 
     private func keystroke(virtualKey: CGKeyCode, modifiers: CGEventFlags) {
@@ -355,6 +415,7 @@ final class StudioModel: ObservableObject {
         - 02-riferimento-front.png: stile per vista frontale / seconda angolazione.
         - 03-riferimento-worn.png: stile per foto indossata.
         - 04-riferimento-packaging.png: stile per scrigno in velluto bordeaux e interno avorio.
+        Se ChatGPT mostra immagini incollate con nomi generici, usa l\'ORDINE degli allegati: 1) prodotto originale; 2) main; 3) front; 4) worn; 5) packaging.
 
         ARTICOLO
         Nome: \(productName.isEmpty ? "Gioiello Adamante" : productName)
@@ -565,7 +626,7 @@ struct StudioView: View {
                     }
                     Divider()
                     HStack(alignment: .center, spacing: 18) {
-                        Toggle("Prova a creare la chat e incollare il prompt", isOn: Binding(
+                        Toggle("Tenta di allegare le 5 foto e il prompt in ChatGPT", isOn: Binding(
                             get: { model.enableAutoPaste },
                             set: { model.setAutoPaste($0) }
                         ))
@@ -588,7 +649,7 @@ struct StudioView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 7))
                         }
                         .buttonStyle(.plain)
-                        .disabled(!model.isReady)
+                        .disabled(!model.isReady || model.isAutoAttaching)
                     }
                     HStack(alignment: .top, spacing: 11) {
                         Image(systemName: "info.circle").foregroundStyle(wine)
@@ -603,6 +664,19 @@ struct StudioView: View {
                     .background(Color(red: 0.93, green: 0.90, blue: 0.85))
                     .clipShape(RoundedRectangle(cornerRadius: 7))
                     if model.preparedFolder != nil {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Label("OBBLIGATORIO: CONTROLLA CINQUE ALLEGATI", systemImage: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(wine)
+                            Text("Prima di premere Invio su ChatGPT devono esserci 5 miniature: prodotto + 4 reference. Se mancano, trascina i cinque PNG dalla cartella Finder preparata, poi incolla il prompt con ⌘V.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(red: 1.0, green: 0.94, blue: 0.89))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         HStack(spacing: 19) {
                             Button("Apri la cartella delle immagini") { model.showPreparedFolder() }
                             Button("Copia nuovamente il prompt") { model.copyPromptAgain() }
