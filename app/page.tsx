@@ -411,7 +411,7 @@ export default function Home() {
       </>}
 
       {tab === "archive" && <>
-        <div className="intro-row"><div><div className="eyebrow"><span className="eyebrow-line" /> ADAMANTE / COLLEZIONE</div><h1 className="page-title">Il tuo <em>archivio.</em></h1><p className="page-description">Ritrova le lavorazioni salvate in questo browser.</p></div><button className="secondary-button" onClick={() => { setTab("studio"); productInput.current?.click(); }}><Plus size={17} /> Nuovo progetto</button></div>
+        <div className="intro-row"><div><div className="eyebrow"><span className="eyebrow-line" /> ADAMANTE / COLLEZIONE</div><h1 className="page-title">Il tuo <em>archivio.</em></h1><p className="page-description">Ritrova le lavorazioni salvate in questo browser.</p></div><button className="secondary-button" onClick={() => { setTab("studio"); window.requestAnimationFrame(() => productInput.current?.click()); }}><Plus size={17} /> Nuovo progetto</button></div>
         <div className="archive-head"><span>{projects.length} LAVORAZIONI SALVATE</span><input className="archive-search" placeholder="Cerca per nome o codice..." value={archiveQuery} onChange={(e) => setArchiveQuery(e.target.value)} /></div>
         {archiveFiltered.length ? <div className="archive-grid">{archiveFiltered.map((item) => <article className="archive-card" key={item.id}>
           <button className="archive-cover" onClick={() => openProject(item)}>{item.results.hero ? <img src={item.results.hero} alt={item.title} /> : <img src={item.original} alt={item.title} />}</button>
