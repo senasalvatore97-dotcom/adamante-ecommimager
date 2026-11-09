@@ -1,3 +1,21 @@
+# Adamante Photo Studio
+
+## Soluzione consigliata: app macOS con ChatGPT personale
+
+È disponibile una prima app per Mac nel percorso [macos/](macos/README.md). L'app prepara la fotografia originale, le quattro reference Adamante e un prompt coordinato; apre ChatGPT del collaboratore e copia/inserisce il prompt, quando i permessi lo consentono.
+
+**Nessun costo API:** ogni collega invia il messaggio nel proprio ChatGPT Plus/Pro. **L'inserimento automatico degli allegati non è supportato ufficialmente:** le cinque immagini vanno trascinate dalla cartella preparata nella nuova chat. L'app non invia messaggi senza l'intervento dell'utente.
+
+**Download:** nella sezione [Actions — Build Mac App](../../actions/workflows/build-macos.yml) seleziona l'ultima esecuzione riuscita e scarica l'artifact `Adamante-Photo-Studio-macOS`. Per installazione e limiti, leggi [macos/README.md](macos/README.md).
+
+---
+
+## Prototipo web con API OpenAI (separato dalla soluzione macOS)
+
+Il codice Next.js sotto `app/` è il precedente prototipo web che genera immagini tramite API OpenAI **a consumo**. Non utilizza gli abbonamenti ChatGPT Plus/Pro ed è mantenuto nella repository come alternativa tecnica; non pubblicarlo senza configurazione del server.
+
+---
+
 # ADAMANTE · Photo Studio
 
 Studio fotografico AI dedicato al catalogo e-commerce Adamante.

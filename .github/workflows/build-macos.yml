@@ -1,0 +1,30 @@
+name: Build Mac App
+on:
+  push:
+    branches: ["feat/macos-studio-launcher"]
+    paths:
+      - "macos/**"
+      - ".github/workflows/build-macos.yml"
+  pull_request:
+    paths:
+      - "macos/**"
+      - ".github/workflows/build-macos.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compila Adamante Photo Studio
+        run: bash macos/build-app.sh
+      - name: Crea archivio ZIP
+        run: |
+          mkdir -p output
+          ditto -c -k --sequesterRsrc --keepParent "macos/dist/Adamante Photo Studio.app" "output/Adamante-Photo-Studio-macOS.zip"
+      - name: Salva applicazione
+        uses: actions/upload-artifact@v4
+        with:
+          name: Adamante-Photo-Studio-macOS
+          path: output/Adamante-Photo-Studio-macOS.zip
+          if-no-files-found: error
