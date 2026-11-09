@@ -12,12 +12,17 @@ mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$ROOT/Info.plist" "$CONTENTS/Info.plist"
 
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
-swiftc -parse-as-library "$ROOT/AdamantePhotoStudio.swift" \
-  -o "$BIN" \
-  -sdk "$SDK" \
-  -target arm64-apple-macos14.0 \
-  -framework SwiftUI -framework AppKit -framework ApplicationServices -framework CoreGraphics \
-  -O
+for ARCH in arm64 x86_64; do
+  swiftc -parse-as-library "$ROOT/AdamantePhotoStudio.swift" \
+    -o "$BIN.$ARCH" \
+    -sdk "$SDK" \
+    -target "$ARCH-apple-macos14.0" \
+    -framework SwiftUI -framework AppKit -framework ApplicationServices -framework CoreGraphics \
+    -O
+done
+
+lipo -create -output "$BIN" "$BIN.arm64" "$BIN.x86_64"
+rm "$BIN.arm64" "$BIN.x86_64"
 
 chmod +x "$BIN"
 codesign --force --deep --sign - "$APP"
