@@ -415,7 +415,7 @@ final class StudioModel: ObservableObject {
         - 02-riferimento-front.png: stile per vista frontale / seconda angolazione.
         - 03-riferimento-worn.png: stile per foto indossata.
         - 04-riferimento-packaging.png: stile per scrigno in velluto bordeaux e interno avorio.
-        Se ChatGPT mostra immagini incollate con nomi generici, usa l\'ORDINE degli allegati: 1) prodotto originale; 2) main; 3) front; 4) worn; 5) packaging.
+        Se ChatGPT mostra immagini incollate con nomi generici, usa l'ORDINE degli allegati: 1) prodotto originale; 2) main; 3) front; 4) worn; 5) packaging.
 
         ARTICOLO
         Nome: \(productName.isEmpty ? "Gioiello Adamante" : productName)
