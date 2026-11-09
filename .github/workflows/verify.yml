@@ -1,0 +1,21 @@
+name: Verifica applicazione
+on:
+  push:
+    branches: ["feat/**"]
+  pull_request:
+    branches: [main]
+jobs:
+  build:
+    name: Controllo TypeScript e compilazione
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Installa dipendenze
+        run: npm install
+      - name: Verifica TypeScript
+        run: npm run lint
+      - name: Compila Next.js
+        run: npm run build
