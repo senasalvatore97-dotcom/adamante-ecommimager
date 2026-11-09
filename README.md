@@ -6,7 +6,7 @@
 
 **Nessun costo API:** ogni collega invia il messaggio nel proprio ChatGPT Plus/Pro. **L'inserimento automatico degli allegati non è supportato ufficialmente:** le cinque immagini vanno trascinate dalla cartella preparata nella nuova chat. L'app non invia messaggi senza l'intervento dell'utente.
 
-**Download:** nella sezione [Actions — Build Mac App](../../actions/workflows/build-macos.yml) seleziona l'ultima esecuzione riuscita e scarica l'artifact `Adamante-Photo-Studio-macOS`. Per installazione e limiti, leggi [macos/README.md](macos/README.md).
+**Download:** nella sezione [Actions — Build Mac App](actions/workflows/build-macos.yml) seleziona l'ultima esecuzione riuscita e scarica l'artifact `Adamante-Photo-Studio-macOS`. Per installazione e limiti, leggi [macos/README.md](macos/README.md).
 
 ---
 
