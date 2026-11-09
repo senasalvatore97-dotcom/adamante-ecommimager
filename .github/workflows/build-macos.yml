@@ -1,7 +1,7 @@
 name: Build Mac App
 on:
   push:
-    branches: ["feat/macos-studio-launcher"]
+    branches: ["main", "feat/macos-studio-launcher"]
     paths:
       - "macos/**"
       - ".github/workflows/build-macos.yml"
